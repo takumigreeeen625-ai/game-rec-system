@@ -1,0 +1,203 @@
+/* GameCard CSS */
+
+.game-card {
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    transition: all var(--transition-normal);
+    cursor: pointer;
+    height: 100%;
+    position: relative;
+    background-color: var(--bg-surface-elevated);
+}
+
+.game-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--accent-primary);
+}
+
+.game-card:hover::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: var(--radius-lg);
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    z-index: -1;
+    opacity: 0.5;
+    filter: blur(10px);
+}
+
+.game-card-image-wrap {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    width: 100%;
+    overflow: hidden;
+    background-color: var(--bg-surface);
+}
+
+.game-card-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform var(--transition-slow);
+}
+
+.game-card:hover .game-card-image {
+    transform: scale(1.05);
+}
+
+.discount-badge {
+    position: absolute;
+    top: 0.75rem;
+    left: 0.75rem;
+    background-color: var(--status-danger);
+    color: white;
+    font-weight: 800;
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--radius-sm);
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+    z-index: 2;
+}
+
+.store-overlay {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    z-index: 2;
+}
+
+.ownership-overlay {
+    position: absolute;
+    bottom: 0.75rem;
+    left: 0.75rem;
+    z-index: 2;
+}
+
+.store-badge {
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--radius-sm);
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.store-badge.nintendo {
+    color: #e60012;
+    border-color: rgba(230, 0, 18, 0.3);
+}
+
+.store-badge.ps {
+    color: #003791;
+    border-color: rgba(0, 55, 145, 0.3);
+}
+
+.store-badge.steam {
+    color: #171a21;
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.store-badge.google {
+    color: #3bccff;
+    border-color: rgba(59, 204, 255, 0.3);
+}
+
+.game-card-content {
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.game-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.75rem;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.game-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+
+.game-rating {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: var(--status-warning);
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.game-price-section {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.regular-price {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-decoration: line-through;
+    line-height: 1;
+}
+
+.current-price {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.recommend-reasons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    margin-top: auto;
+    margin-bottom: 1rem;
+}
+
+.reason-tag {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.5rem;
+}
+
+.game-card-actions {
+    margin-top: auto;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all var(--transition-normal);
+    height: 0;
+    overflow: hidden;
+}
+
+.game-card:hover .game-card-actions {
+    opacity: 1;
+    transform: translateY(0);
+    height: auto;
+    margin-top: 0.5rem;
+}
+
+.card-btn {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.card-btn:hover {
+    background-color: var(--accent-primary);
+    border-color: var(--accent-primary);
+    color: white;
+}

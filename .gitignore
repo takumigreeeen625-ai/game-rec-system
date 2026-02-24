@@ -1,0 +1,12 @@
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.env.*
+!.env.example
+.DS_Store
+backend/dev.db
+backend/node_modules/
+backend/dist/
+backend/.env
