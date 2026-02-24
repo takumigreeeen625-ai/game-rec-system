@@ -60,37 +60,57 @@ router.post('/add', authenticateToken, async (req: AuthRequest, res: Response): 
             return;
         }
 
-        // Since we don't have a giant master DB yet, just create the game if it doesn't match an exact title/store combination
-        // Search by title only for de-duplication
+        // Check exact user input match first
         let game = await prisma.game.findFirst({
             where: { title }
         });
 
+        let metadata = null;
         if (!game) {
-            let metadata = null;
+            // Fetch official metadata to get standard title
             try {
                 metadata = await fetchRawgGameMetadata(title);
             } catch (err) {
                 console.error("Failed to fetch RAWG metadata:", err);
             }
 
-            game = await prisma.game.create({
-                data: {
-                    title: metadata?.name || title,
-                    price: 0, // Placeholder
-                    rating: metadata?.rating || 0,
-                    imageUrl: metadata?.background_image || 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&q=80', // Default placeholder
-                }
+            const officialTitle = metadata?.name || title;
+
+            // Check if official title already exists in DB
+            game = await prisma.game.findFirst({
+                where: { title: officialTitle }
             });
-        } else if (game.imageUrl === 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&q=80' || !game.imageUrl) {
-            // Auto-heal existing games that only have placeholders
-            try {
-                const metadata = await fetchRawgGameMetadata(title);
+
+            if (!game) {
+                game = await prisma.game.create({
+                    data: {
+                        title: officialTitle,
+                        price: 0, // Placeholder
+                        rating: metadata?.rating || 0,
+                        imageUrl: metadata?.background_image || 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&q=80', // Default placeholder
+                    }
+                });
+            } else if (game.imageUrl === 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&q=80' || !game.imageUrl) {
+                // Auto-heal existing games that only have placeholders, if metadata was found
                 if (metadata?.background_image) {
                     game = await prisma.game.update({
                         where: { id: game.id },
                         data: {
-                            title: metadata.name || title,
+                            imageUrl: metadata.background_image,
+                            rating: metadata.rating || 0
+                        }
+                    });
+                }
+            }
+        } else if (game.imageUrl === 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&q=80' || !game.imageUrl) {
+            // Auto-heal existing exact-match game that only has placeholders
+            try {
+                metadata = await fetchRawgGameMetadata(title);
+                if (metadata?.background_image) {
+                    game = await prisma.game.update({
+                        where: { id: game.id },
+                        data: {
+                            title: metadata.name || game.title,
                             imageUrl: metadata.background_image,
                             rating: metadata.rating || 0
                         }
@@ -172,14 +192,12 @@ router.post('/add-bulk', authenticateToken, async (req: AuthRequest, res: Respon
                     continue;
                 }
 
-                // 1. Check if the game exists in the master Game table
+                // 1. Check if the exact user input matches first
                 let game = await prisma.game.findFirst({
-                    where: {
-                        title: { equals: title }
-                    }
+                    where: { title: { equals: title } }
                 });
 
-                // 2. If not, create it
+                // 2. If not, resolve official title and check again before creating
                 if (!game) {
                     let metadata = null;
                     try {
@@ -188,25 +206,43 @@ router.post('/add-bulk', authenticateToken, async (req: AuthRequest, res: Respon
                         console.error("Failed to fetch RAWG metadata:", err);
                     }
 
-                    game = await prisma.game.create({
-                        data: {
-                            title: metadata?.name || title, // Use official name if found
-                            price: 0,
-                            discountRate: 0,
-                            isOnSale: false,
-                            rating: metadata?.rating || 0,
-                            imageUrl: metadata?.background_image || 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&q=80'
-                        }
+                    const officialTitle = metadata?.name || title;
+
+                    game = await prisma.game.findFirst({
+                        where: { title: { equals: officialTitle } }
                     });
+
+                    if (!game) {
+                        game = await prisma.game.create({
+                            data: {
+                                title: officialTitle,
+                                price: 0,
+                                discountRate: 0,
+                                isOnSale: false,
+                                rating: metadata?.rating || 0,
+                                imageUrl: metadata?.background_image || 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&q=80'
+                            }
+                        });
+                    } else if (game.imageUrl === 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&q=80' || !game.imageUrl) {
+                        if (metadata?.background_image) {
+                            game = await prisma.game.update({
+                                where: { id: game.id },
+                                data: {
+                                    imageUrl: metadata.background_image,
+                                    rating: metadata.rating || 0
+                                }
+                            });
+                        }
+                    }
                 } else if (game.imageUrl === 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=800&q=80' || !game.imageUrl) {
-                    // Auto-heal existing games that only have placeholders
+                    // Auto-heal existing exact-match placeholders
                     try {
                         const metadata = await fetchRawgGameMetadata(title);
                         if (metadata?.background_image) {
                             game = await prisma.game.update({
                                 where: { id: game.id },
                                 data: {
-                                    title: metadata.name || title,
+                                    title: metadata.name || game.title,
                                     imageUrl: metadata.background_image,
                                     rating: metadata.rating || 0
                                 }

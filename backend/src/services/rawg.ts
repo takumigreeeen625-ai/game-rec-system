@@ -18,52 +18,66 @@ export const fetchRawgGameMetadata = async (gameTitle: string): Promise<RawgGame
 
     if (!RAWG_API_KEY) {
         console.warn('⚠️ RAWG_API_KEY is not set in environment variables. Skipping metadata fetch.');
-        return null; // Silent fallback
+        return null;
     }
 
-    try {
-        // RAWG search is highly optimized for English. 
-        // If the title contains Japanese characters, translate it first.
-        let searchQuery = gameTitle;
-        if (/[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf]/.test(gameTitle)) {
-            try {
-                // Translate from Japanese to English
-                searchQuery = await translate(gameTitle, { from: 'ja', to: 'en' });
-                console.log(`Translated "${gameTitle}" to "${searchQuery}" for RAWG API`);
-            } catch (translationError) {
-                console.warn('Translation failed, falling back to original title:', translationError);
-            }
-        }
-
-        // Search for the game by title
+    const searchRawg = async (query: string) => {
         const url = new URL(`${RAWG_API_URL}/games`);
         url.searchParams.append('key', RAWG_API_KEY);
-        url.searchParams.append('search', searchQuery);
-        url.searchParams.append('page_size', '1'); // We only need the top match
+        url.searchParams.append('search', query);
+        url.searchParams.append('page_size', '5'); // Fetch top 5 to find the most relevant/popular
         url.searchParams.append('search_exact', 'false');
 
         const response = await fetch(url.toString(), {
             method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            }
+            headers: { 'Content-Type': 'application/json' }
         });
 
         if (!response.ok) {
             throw new Error(`RAWG API request failed with status: ${response.status}`);
         }
+        return await response.json();
+    };
 
-        const data = await response.json();
+    const getBestMatch = (results: any[]) => {
+        if (!results || results.length === 0) return null;
+        // Sort by 'added' count (popularity on RAWG) to avoid weird obscure games that happen to share a name
+        const sorted = [...results].sort((a, b) => (b.added || 0) - (a.added || 0));
+        return sorted[0];
+    };
 
-        if (data.results && data.results.length > 0) {
-            const match = data.results[0];
+    try {
+        // 1. Try native search first
+        let data = await searchRawg(gameTitle);
+        let bestMatch = getBestMatch(data.results);
+
+        // 2. If it's a Japanese title and the native search yielded poor results (e.g. added < 50)
+        // Try translating to English for a potentially better match
+        const isJapanese = /[\u3000-\u303f\u3040-\u309f\u30a0-\u30ff\uff00-\uff9f\u4e00-\u9faf\u3400-\u4dbf]/.test(gameTitle);
+        if (isJapanese && (!bestMatch || (bestMatch.added || 0) < 50)) {
+            try {
+                const translatedQuery = await translate(gameTitle, { from: 'ja', to: 'en' });
+                console.log(`Translated "${gameTitle}" to "${translatedQuery}" for RAWG API fallback`);
+                const translatedData = await searchRawg(translatedQuery);
+                const translatedBestMatch = getBestMatch(translatedData.results);
+
+                // If translated search yields a clearly more popular game, use it
+                if (translatedBestMatch && (translatedBestMatch.added || 0) > (bestMatch?.added || 0)) {
+                    bestMatch = translatedBestMatch;
+                }
+            } catch (translationError) {
+                console.warn('Translation failed, sticking to native search results:', translationError);
+            }
+        }
+
+        if (bestMatch) {
             return {
-                id: match.id,
-                name: match.name,
-                background_image: match.background_image || null,
-                released: match.released,
-                rating: match.rating,
-                metacritic: match.metacritic
+                id: bestMatch.id,
+                name: bestMatch.name,
+                background_image: bestMatch.background_image || null,
+                released: bestMatch.released,
+                rating: bestMatch.rating,
+                metacritic: bestMatch.metacritic
             };
         }
 
@@ -72,7 +86,7 @@ export const fetchRawgGameMetadata = async (gameTitle: string): Promise<RawgGame
 
     } catch (error) {
         console.error('Error fetching game data from RAWG:', error);
-        return null; // Return null on error so the application doesn't crash
+        return null;
     }
 };
 
