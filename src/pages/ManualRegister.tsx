@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Save, Library as LibraryIcon, Search } from 'lucide-react';
+import { Save, Library as LibraryIcon } from 'lucide-react';
 import Layout from '../components/layout/Layout';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -10,13 +10,10 @@ export default function ManualRegister() {
     const [title, setTitle] = useState('');
     const [store, setStore] = useState('NONE');
     const [ownedType, setOwnedType] = useState('MANUAL_REGISTERED');
-
-    const [isSubmitting, setIsSubmitting] = useState(false);
     const navigate = useNavigate();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsSubmitting(true);
         try {
             await fetchApi('/library/add', {
                 method: 'POST',
@@ -30,8 +27,6 @@ export default function ManualRegister() {
             navigate('/library');
         } catch (error: any) {
             alert(`エラー: ${error.message || '追加に失敗しました'} `);
-        } finally {
-            setIsSubmitting(false);
         }
     };
 

@@ -10,7 +10,6 @@ export default function BookmarkletReceiver() {
     const navigate = useNavigate();
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
     const [message, setMessage] = useState('ブックマークレットからのデータを解析中です...');
-    const [resultData, setResultData] = useState<any>(null);
 
     useEffect(() => {
         const processData = async () => {
@@ -38,8 +37,6 @@ export default function BookmarkletReceiver() {
                     method: 'POST',
                     body: JSON.stringify({ games: payload.games })
                 });
-
-                setResultData(response.results);
                 setStatus('success');
                 setMessage(`${response.results.added}件追加, ${response.results.skipped}件スキップ`);
 
