@@ -25,8 +25,10 @@ router.get('/games', authenticateToken, async (req: AuthRequest, res: Response):
             store: ug.store, // Temporary mapping to avoid breaking frontend immediately
             platforms: [ug.store], // New property for frontend Phase 5 array mapping
             ownedType: ug.ownedType,
+            purchasePrice: ug.purchasePrice,
             userGameId: ug.id,
             addedAt: ug.createdAt
+
         }));
 
         // Merge duplicate games into a single entry with multiple platforms
@@ -53,7 +55,7 @@ router.get('/games', authenticateToken, async (req: AuthRequest, res: Response):
 router.post('/add', authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
     try {
         const userId = req.userId!;
-        const { title, store, ownedType } = req.body;
+        const { title, store, ownedType, purchasePrice } = req.body;
 
         if (!title || !store || !ownedType) {
             res.status(400).json({ error: 'Missing required fields' });
@@ -74,7 +76,8 @@ router.post('/add', authenticateToken, async (req: AuthRequest, res: Response): 
                 console.error("Failed to fetch RAWG metadata:", err);
             }
 
-            const officialTitle = metadata?.name || title;
+            // Always prioritize the user's input title to prevent unwanted English translations
+            const officialTitle = title;
 
             // Check if official title already exists in DB
             game = await prisma.game.findFirst({
@@ -110,7 +113,6 @@ router.post('/add', authenticateToken, async (req: AuthRequest, res: Response): 
                     game = await prisma.game.update({
                         where: { id: game.id },
                         data: {
-                            title: metadata.name || game.title,
                             imageUrl: metadata.background_image,
                             rating: metadata.rating || 0
                         }
@@ -142,17 +144,23 @@ router.post('/add', authenticateToken, async (req: AuthRequest, res: Response): 
                 userId,
                 gameId: game.id,
                 store,
-                ownedType
-            },
-            include: {
-                game: true
+                ownedType,
+                purchasePrice: purchasePrice ? parseInt(purchasePrice, 10) : null
             }
         });
 
+        // Fetch the created userGame with game relation to satisfy return type
+        const completeUserGame = await prisma.userGame.findUnique({
+            where: { id: userGame.id },
+            include: { game: true }
+        });
+
+        if (!completeUserGame) throw new Error("Creation failed");
+
         res.status(201).json({
-            ...userGame.game,
-            ownedType: userGame.ownedType,
-            userGameId: userGame.id
+            ...completeUserGame.game,
+            ownedType: completeUserGame.ownedType,
+            userGameId: completeUserGame.id
         });
     } catch (error) {
         console.error('Add game error:', error);
@@ -206,7 +214,8 @@ router.post('/add-bulk', authenticateToken, async (req: AuthRequest, res: Respon
                         console.error("Failed to fetch RAWG metadata:", err);
                     }
 
-                    const officialTitle = metadata?.name || title;
+                    // Always prioritize the user's input title to prevent unwanted English translations
+                    const officialTitle = title;
 
                     game = await prisma.game.findFirst({
                         where: { title: { equals: officialTitle } }
@@ -242,7 +251,6 @@ router.post('/add-bulk', authenticateToken, async (req: AuthRequest, res: Respon
                             game = await prisma.game.update({
                                 where: { id: game.id },
                                 data: {
-                                    title: metadata.name || game.title,
                                     imageUrl: metadata.background_image,
                                     rating: metadata.rating || 0
                                 }
@@ -292,6 +300,37 @@ router.post('/add-bulk', authenticateToken, async (req: AuthRequest, res: Respon
     } catch (error) {
         console.error('Add bulk error:', error);
         res.status(500).json({ error: 'サーバーエラーが発生しました' });
+    }
+});
+
+// Delete a game from user's library
+router.delete('/game/:gameId', authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+        const userId = req.userId!;
+        const gameId = req.params.gameId;
+
+        if (typeof gameId !== 'string') {
+            res.status(400).json({ error: 'Invalid gameId format' });
+            return;
+        }
+
+        // Delete all UserGame records for this user and game (all platforms)
+        const deleteResult = await prisma.userGame.deleteMany({
+            where: {
+                userId,
+                gameId
+            }
+        });
+
+        if (deleteResult.count === 0) {
+            res.status(404).json({ error: 'Game not found in your library' });
+            return;
+        }
+
+        res.json({ message: 'Game removed from library successfully' });
+    } catch (error) {
+        console.error('Delete game error:', error);
+        res.status(500).json({ error: 'Internal server error while removing game' });
     }
 });
 

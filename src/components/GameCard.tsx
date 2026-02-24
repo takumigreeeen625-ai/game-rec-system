@@ -15,6 +15,7 @@ export interface GameCardProps {
     rating?: number;
     ownedType?: 'PURCHASED' | 'FREE_CLAIMED' | 'SUBSCRIPTION' | 'NONE';
     reasons?: string[];
+    onDelete?: (e: React.MouseEvent) => void;
     onClick?: () => void;
 }
 
@@ -29,6 +30,7 @@ export default function GameCard({
     rating,
     ownedType = 'NONE',
     reasons = [],
+    onDelete,
     onClick
 }: GameCardProps) {
 
@@ -111,10 +113,26 @@ export default function GameCard({
                     </div>
                 )}
 
-                <div className="game-card-actions">
+                <div className="game-card-actions" style={{ display: 'flex', gap: '0.5rem' }}>
                     <Button variant="secondary" size="sm" fullWidth className="card-btn">
                         詳細を見る
                     </Button>
+                    {onDelete && (
+                        <Button
+                            variant="danger"
+                            size="sm"
+                            className="card-btn"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                onDelete(e);
+                            }}
+                            title="このゲームを削除"
+                            style={{ padding: '0 0.75rem', backgroundColor: 'var(--status-danger)', color: 'white' }}
+                        >
+                            削除
+                        </Button>
+                    )}
                 </div>
             </div>
         </div>

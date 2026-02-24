@@ -10,6 +10,7 @@ export default function ManualRegister() {
     const [title, setTitle] = useState('');
     const [store, setStore] = useState('NONE');
     const [ownedType, setOwnedType] = useState('MANUAL_REGISTERED');
+    const [purchasePrice, setPurchasePrice] = useState('');
     const navigate = useNavigate();
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -20,7 +21,8 @@ export default function ManualRegister() {
                 body: JSON.stringify({
                     title,
                     store: store, // Map 'store' state to 'store' in API payload
-                    ownedType: ownedType // Map 'ownedType' state to 'ownedType' in API payload
+                    ownedType: ownedType, // Map 'ownedType' state to 'ownedType' in API payload
+                    purchasePrice: purchasePrice ? parseInt(purchasePrice, 10) : null
                 })
             });
             alert(`${title} をライブラリに追加しました`);
@@ -79,6 +81,14 @@ export default function ManualRegister() {
                                 <option value="FREE_CLAIMED">無料取得・譲渡</option>
                             </select>
                         </div>
+
+                        <Input
+                            label="購入金額 (任意)"
+                            placeholder="例: 6800"
+                            type="number"
+                            value={purchasePrice}
+                            onChange={(e) => setPurchasePrice(e.target.value)}
+                        />
 
                         <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
                             <Button type="submit" variant="primary" leftIcon={<Save size={18} />}>

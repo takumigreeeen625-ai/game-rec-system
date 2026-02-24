@@ -43,6 +43,21 @@ export default function Library() {
         setGames(filtered);
     };
 
+    const handleDelete = async (gameId: string, title: string) => {
+        if (!window.confirm(`「${title}」をライブラリから削除してもよろしいですか？`)) return;
+
+        try {
+            await fetchApi(`/library/game/${gameId}`, { method: 'DELETE' });
+            // Refresh library
+            const updated = allGames.filter(g => g.id !== gameId);
+            setAllGames(updated);
+            setGames(updated);
+            alert('削除しました');
+        } catch (err: any) {
+            alert(`削除に失敗しました: ${err.message}`);
+        }
+    };
+
     return (
         <Layout title="統合ライブラリ">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -85,8 +100,11 @@ export default function Library() {
                     ) : games.length > 0 ? (
                         games.map((game) => (
                             <div key={game.id} style={{ height: '320px' }}>
-                                <Link to={`/ game / ${game.id} `} style={{ display: 'block', height: '100%' }}>
-                                    <GameCard {...game} />
+                                <Link to={`/game/${game.id}`} style={{ display: 'block', height: '100%' }}>
+                                    <GameCard
+                                        {...game}
+                                        onDelete={(e) => handleDelete(game.id, game.title)}
+                                    />
                                 </Link>
                             </div>
                         ))
