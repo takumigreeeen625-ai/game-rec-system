@@ -36,6 +36,9 @@ export default function Import() {
         // Nintendo often has "商品名: ゲームタイトル" and "価格: ¥ 1,000" on separate lines or consecutive lines
         let isNintendo = emailText.includes('My Nintendo Store') || emailText.includes('マイニンテンドーストア') || emailText.includes('任天堂');
 
+        let isPlayStation = emailText.includes('PlayStation Store') || emailText.includes('playstation.com');
+        let isGooglePlay = emailText.includes('Google Play') || emailText.includes('注文明細');
+
         try {
             if (isSteam) {
                 // Steam line-by-line parsing: "Title - ¥ Price" or "Title ¥ Price"
@@ -80,6 +83,71 @@ export default function Import() {
                             i++;
                         }
                         results.push({ title, price, store: 'NINTENDO' });
+                    }
+                }
+            } else if (isPlayStation) {
+                // PlayStation parsing logic
+                const detailIndex = lines.findIndex(l => l.replace(/[\s\t\u3000]/g, '').includes('詳細価格') || (l.includes('詳細') && l.includes('価格')));
+                const subtotalIndex = lines.findIndex(l => l.includes('小計:'));
+
+                if (detailIndex !== -1) {
+                    const endIndex = subtotalIndex !== -1 ? subtotalIndex : lines.length;
+                    for (let i = detailIndex + 1; i < endIndex; i++) {
+                        let line = lines[i].trim();
+                        if (line.replace(/[\s\t\u3000]/g, '').length === 0) continue;
+
+                        // Cleanup title
+                        let title = line.replace(/\(ゲーム本編\)/g, '')
+                            .replace(/\(PS4.*?\)/gi, '')
+                            .replace(/\(PS5.*?\)/gi, '')
+                            .trim();
+
+                        let price = null;
+                        const priceMatch = title.match(/[¥￥]\s*([0-9,]+)/);
+                        if (priceMatch) {
+                            price = parseInt(priceMatch[1].replace(/,/g, ''), 10);
+                            title = title.replace(priceMatch[0], '').trim();
+                        }
+
+                        if (title.length > 1) {
+                            results.push({ title, price, store: 'PLAYSTATION' });
+                        }
+                    }
+
+                    if (results.length === 1 && results[0].price === null) {
+                        const totalLine = lines.find(l => l.startsWith('合計:') && /[¥￥]\s*([0-9,]+)/.test(l));
+                        if (totalLine) {
+                            const totalMatch = totalLine.match(/[¥￥]\s*([0-9,]+)/);
+                            if (totalMatch) {
+                                results[0].price = parseInt(totalMatch[1].replace(/,/g, ''), 10);
+                            }
+                        } else if (subtotalIndex !== -1 && lines[subtotalIndex + 1]) {
+                            const nextLineMatch = lines[subtotalIndex + 1].match(/[¥￥]\s*([0-9,]+)/);
+                            if (nextLineMatch) {
+                                results[0].price = parseInt(nextLineMatch[1].replace(/,/g, ''), 10);
+                            }
+                        }
+                    }
+                }
+            } else if (isGooglePlay) {
+                // Google Play parsing logic
+                const detailIndex = lines.findIndex(l => l.replace(/[\s\t\u3000]/g, '').includes('アイテム価格'));
+                const subtotalIndex = lines.findIndex(l => l.startsWith('合計:'));
+
+                if (detailIndex !== -1) {
+                    const endIndex = subtotalIndex !== -1 ? subtotalIndex : lines.length;
+                    for (let i = detailIndex + 1; i < endIndex; i++) {
+                        let line = lines[i].trim();
+                        const gpRegex = /^(.*?)(?:\s*\([^)]+\))?\s+[¥￥]\s*([0-9,]+)$/;
+                        const match = line.match(gpRegex);
+
+                        if (match && match[1]) {
+                            const title = match[1].trim();
+                            const price = parseInt(match[2].replace(/,/g, ''), 10);
+                            if (title.length > 1) {
+                                results.push({ title, price, store: 'GOOGLE_PLAY' });
+                            }
+                        }
                     }
                 }
             } else {
@@ -195,12 +263,12 @@ export default function Import() {
                             </div>
                             <div>
                                 <h3 style={{ fontSize: '1.25rem' }}>購入メール一括解析 (New!✨)</h3>
-                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Steam / Nintendo 等に対応</p>
+                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Steam / Nintendo / PS / Google</p>
                             </div>
                         </div>
 
                         <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
-                            「ご購入ありがとうございました」などの受領メール本文をすべてコピーして、下の枠に貼り付けるだけで、タイトルと購入金額を自動で読み取って登録します！
+                            「ご購入ありがとうございました」などの受領メール本文をすべてコピーして、下の枠に貼り付けるだけで、タイトルと購入金額を自動で読み取って登録します！ (Steam, Nintendo, PlayStation, Google Play対応)
                         </p>
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -236,7 +304,7 @@ export default function Import() {
                                         {parseResult.map((res, i) => (
                                             <li key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px dotted var(--border-color)' }}>
                                                 <span style={{ fontSize: '0.875rem', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '70%' }}>{res.title}</span>
-                                                <span style={{ fontSize: '0.875rem', color: 'var(--text-accent)' }}>¥{res.price?.toLocaleString()}</span>
+                                                <span style={{ fontSize: '0.875rem', color: 'var(--text-accent)' }}>{res.price != null ? `¥${res.price.toLocaleString()}` : '価格不明'}</span>
                                             </li>
                                         ))}
                                     </ul>
