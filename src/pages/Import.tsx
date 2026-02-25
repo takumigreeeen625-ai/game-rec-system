@@ -138,7 +138,7 @@ export default function Import() {
                     const endIndex = subtotalIndex !== -1 ? subtotalIndex : lines.length;
                     for (let i = detailIndex + 1; i < endIndex; i++) {
                         let line = lines[i].trim();
-                        const gpRegex = /^(.*?)(?:\s*\([^)]+\))?\s+[¥￥]\s*([0-9,]+)$/;
+                        const gpRegex = /^(.*?)(?:\s*\([^)]+\))?[\s\t]*[¥￥]\s*([0-9,]+)$/;
                         const match = line.match(gpRegex);
 
                         if (match && match[1]) {
