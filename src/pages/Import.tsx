@@ -58,9 +58,9 @@ export default function Import() {
                 // Simplified Nintendo parsing: Look for chunks of text or consecutive lines where price follows title
                 for (let i = 0; i < lines.length - 1; i++) {
                     const currentLine = lines[i];
-                    const nextLine = lines[i + 1];
 
                     // Pattern A: Title is just a line, next line is "¥ 10,000"
+                    const nextLine = lines[i + 1];
                     const nintendoPriceRegex = /^[¥￥]\s*([0-9,]+)$/;
                     if (nintendoPriceRegex.test(nextLine)) {
                         // Attempt to avoid generic non-title lines
@@ -73,14 +73,21 @@ export default function Import() {
                         }
                     }
 
-                    // Pattern B: "商品名: タイトル"
-                    if (currentLine.startsWith('商品名:')) {
-                        const title = currentLine.replace('商品名:', '').trim();
+                    // Pattern B: "商品名: タイトル" or "商品名：タイトル"
+                    const titleMatch = currentLine.match(/^商品名[:：](.*)$/);
+                    if (titleMatch) {
+                        const title = titleMatch[1].trim();
                         let price = null;
-                        const priceLineMatch = nextLine.match(/価格:\s*[¥￥]\s*([0-9,]+)/);
-                        if (priceLineMatch) {
-                            price = parseInt(priceLineMatch[1].replace(/,/g, ''), 10);
-                            i++;
+
+                        // Look ahead up to 5 lines for "単価", "小計", or "価格"
+                        for (let j = 1; j <= 5 && i + j < lines.length; j++) {
+                            const lookaheadLine = lines[i + j];
+                            const priceLineMatch = lookaheadLine.match(/(?:価格|単価|小計)[:：]\s*[¥￥]?\s*([0-9,]+)(?:\s*円)?/);
+                            if (priceLineMatch) {
+                                price = parseInt(priceLineMatch[1].replace(/,/g, ''), 10);
+                                i = i + j; // Fast-forward outer loop
+                                break;
+                            }
                         }
                         results.push({ title, price, store: 'NINTENDO' });
                     }
